@@ -1,32 +1,15 @@
-import axios from 'axios'
-
+import axios from "axios";
+// Vite dirige /api al backend local del puerto 5166.
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5166/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-
-  return config
-})
-
-api.interceptors.response.use((response) => {
-  if (response.data?.esExitoso === false) {
-    return Promise.reject(new Error(response.data.mensaje || 'La solicitud no pudo completarse.'))
-  }
-
-  return response
-})
-
+  baseURL: import.meta.env.VITE_API_BASE_URL || "/api",
+  timeout: 15000,
+});
 export function getErrorMessage(error) {
-  return error.response?.data?.mensaje || error.message || 'Ocurrió un error inesperado.'
+  if (!error.response)
+    return "No pudimos conectar con el servidor. Comprueba que el backend esté iniciado en el puerto 5166 e inténtalo de nuevo.";
+  return (
+    error.response.data?.mensaje ||
+    "No se pudo iniciar sesión. Revisa tus datos e inténtalo de nuevo."
+  );
 }
-
-export default api
+export default api;
