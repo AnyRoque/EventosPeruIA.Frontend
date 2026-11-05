@@ -60,7 +60,10 @@ async function login() {
   errorMessage.value = ''
 
   try {
-    const response = await api.post('/Auth/login', form)
+    const response = await api.post('/Usuario/login', {
+      correo: form.email,
+      password: form.password,
+    })
     const token = response.data?.datos?.token
 
     if (typeof token !== 'string' || token.length === 0) {
