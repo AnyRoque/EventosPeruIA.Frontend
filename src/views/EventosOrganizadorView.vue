@@ -1,300 +1,335 @@
 <template>
-  <section>
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+  <q-page class="page-content">
+    <div class="section-heading">
       <div>
-        <p class="text-primary fw-semibold mb-1">Panel del organizador</p>
-        <h1 class="h2 mb-0">Mis eventos</h1>
+        <p class="eyebrow">PANEL DEL ORGANIZADOR</p>
+        <h1>Mis eventos</h1>
+        <p class="muted">Dale vida a tu próxima gran idea.</p>
       </div>
-      <button class="btn btn-primary" @click="startCreate">
-        Crear evento
-      </button>
+      <q-btn
+        unelevated
+        no-caps
+        color="primary"
+        icon="add"
+        label="Crear evento"
+        @click="openForm()"
+      />
     </div>
-
-    <div v-if="pageError" class="alert alert-danger" role="alert">
-      {{ pageError }}
-      <button class="btn btn-sm btn-outline-danger ms-2" @click="loadEvents">Reintentar</button>
+    <q-banner rounded class="demo-banner q-mb-xl"
+      ><template #avatar><q-icon name="science" color="secondary" /></template
+      >Gestión de demostración. Puedes crear, editar y cancelar eventos de
+      ejemplo; los cambios se reinician al recargar la página.</q-banner
+    >
+    <div class="management-stats">
+      <q-card v-for="stat in stats" :key="stat.label" flat bordered
+        ><q-card-section
+          ><q-icon :name="stat.icon" color="secondary" size="26px" /><strong>{{
+            stat.value
+          }}</strong
+          ><span>{{ stat.label }}</span></q-card-section
+        ></q-card
+      >
     </div>
-    <div v-if="successMessage" class="alert alert-success" role="status">
-      {{ successMessage }}
+    <div class="search-bar">
+      <q-input
+        v-model="search"
+        outlined
+        clearable
+        label="Buscar mis eventos"
+        class="search-input"
+        ><template #prepend><q-icon name="search" /></template></q-input
+      ><q-select
+        v-model="status"
+        outlined
+        label="Estado"
+        :options="['Todos', 'Publicado', 'Borrador', 'Cancelado']"
+      />
     </div>
-
-    <section v-if="isFormOpen" class="card border-0 shadow-sm mb-4">
-      <div class="card-body p-4">
-        <h2 class="h5 mb-3">{{ editingEventId === null ? 'Nuevo evento' : 'Editar evento' }}</h2>
-        <div v-if="formError" class="alert alert-danger" role="alert">{{ formError }}</div>
-        <form class="row g-3" @submit.prevent="saveEvent">
-          <div class="col-md-6">
-            <label for="event-title" class="form-label">Título</label>
-            <input
-              id="event-title"
-              v-model.trim="form.titulo"
-              class="form-control"
-              required
-              maxlength="150"
-            />
-          </div>
-          <div class="col-md-6">
-            <label for="event-place" class="form-label">Lugar</label>
-            <input
-              id="event-place"
-              v-model.trim="form.lugar"
-              class="form-control"
-              required
-              maxlength="200"
-            />
-          </div>
-          <div class="col-md-4">
-            <label for="event-date" class="form-label">Fecha y hora</label>
-            <input
-              id="event-date"
-              v-model="form.fecha"
-              class="form-control"
-              type="datetime-local"
-              required
-            />
-          </div>
-          <div class="col-md-4">
-            <label for="event-capacity" class="form-label">Aforo</label>
-            <input
-              id="event-capacity"
-              v-model.number="form.aforo"
-              class="form-control"
-              type="number"
-              min="1"
-              step="1"
-              required
-            />
-          </div>
-          <div class="col-md-4">
-            <label for="event-price" class="form-label">Precio (S/)</label>
-            <input
-              id="event-price"
-              v-model.number="form.precio"
-              class="form-control"
-              type="number"
-              min="0"
-              step="0.01"
-              required
-            />
-          </div>
-          <div class="col-12 d-flex justify-content-end gap-2">
-            <button
-              type="button"
-              class="btn btn-outline-secondary"
-              :disabled="isSaving"
-              @click="closeForm"
+    <div class="management-list">
+      <article v-for="event in filtered" :key="event.id" class="management-row">
+        <div class="event-miniature">
+          <q-icon :name="event.icono || 'festival'" size="30px" />
+        </div>
+        <div class="management-info">
+          <div class="row items-center q-gutter-sm">
+            <h2>{{ event.titulo }}</h2>
+            <q-badge
+              outline
+              :color="
+                event.estado === 'Publicado'
+                  ? 'positive'
+                  : event.estado === 'Cancelado'
+                    ? 'negative'
+                    : 'warning'
+              "
+              >{{ event.estado }}</q-badge
             >
-              Cancelar
-            </button>
-            <button type="submit" class="btn btn-primary" :disabled="isSaving">
-              {{ isSaving ? 'Guardando…' : 'Guardar evento' }}
-            </button>
           </div>
-        </form>
+          <p class="muted">
+            {{ formatDate(event.fecha) }} · {{ event.ciudad }}
+          </p>
+          <small class="muted"
+            >{{ event.lugar }} · Aforo: {{ event.aforo }} ·
+            {{ formatPrice(event.precio) }}</small
+          >
+        </div>
+        <div class="management-actions">
+          <q-btn
+            flat
+            no-caps
+            icon="edit"
+            label="Editar"
+            :disable="event.estado === 'Cancelado'"
+            @click="openForm(event)"
+          /><q-btn
+            flat
+            round
+            color="negative"
+            icon="event_busy"
+            :disable="event.estado === 'Cancelado'"
+            :aria-label="'Cancelar evento: ' + event.titulo"
+            @click="cancelTarget = event"
+            ><q-tooltip>Cancelar evento</q-tooltip></q-btn
+          >
+        </div>
+      </article>
+      <div v-if="!filtered.length" class="empty-state">
+        <q-icon name="event_note" size="48px" />
+        <h2>No hay eventos con estos filtros</h2>
+        <q-btn
+          flat
+          color="secondary"
+          no-caps
+          label="Limpiar filtros"
+          @click="
+            search = '';
+            status = 'Todos';
+          "
+        />
       </div>
-    </section>
-
-    <div v-if="isLoading" class="text-center py-5" role="status">
-      <span class="spinner-border text-primary me-2" aria-hidden="true" />
-      Cargando eventos…
     </div>
-    <div v-else-if="events.length === 0" class="card border-0 shadow-sm">
-      <div class="card-body text-center py-5">
-        <h2 class="h5">Aún no tienes eventos</h2>
-        <p class="text-secondary mb-0">Crea tu primer evento para empezar a organizar.</p>
-      </div>
-    </div>
-    <div v-else class="row g-3">
-      <div v-for="event in events" :key="eventId(event)" class="col-12 col-lg-6">
-        <article class="card border-0 shadow-sm h-100">
-          <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-start gap-3">
-              <div>
-                <h2 class="h5 mb-1">{{ event.titulo }}</h2>
-                <p class="text-secondary mb-3">{{ event.lugar }}</p>
-              </div>
-              <span class="badge text-bg-light">{{ formatDate(event.fecha) }}</span>
-            </div>
-            <p class="mb-3">
-              Aforo: {{ event.aforo }} · Precio: {{ formatAmount(event.precio) }}
-            </p>
-            <div class="d-flex gap-2">
-              <button class="btn btn-outline-primary btn-sm" @click="startEdit(event)">
-                Editar
-              </button>
-              <button
-                class="btn btn-outline-danger btn-sm"
-                :disabled="eventId(event) === null"
-                @click="selectedEventId = eventId(event)"
-              >
-                Cancelar evento
-              </button>
-            </div>
+    <q-dialog v-model="formOpen" persistent>
+      <q-card class="event-form-dialog">
+        <q-card-section class="row justify-between items-center"
+          ><div>
+            <p class="eyebrow">TU PRÓXIMA EXPERIENCIA</p>
+            <h2>{{ editingId ? "Editar evento" : "Crear evento" }}</h2>
           </div>
-        </article>
-      </div>
-    </div>
-
+          <q-btn
+            flat
+            round
+            icon="close"
+            aria-label="Cerrar formulario"
+            v-close-popup
+        /></q-card-section>
+        <q-card-section>
+          <q-form @submit="save" class="form-stack">
+            <q-input
+              v-model.trim="form.titulo"
+              outlined
+              label="Título del evento *"
+              maxlength="150"
+              :rules="[required]"
+              lazy-rules
+              hide-bottom-space
+            />
+            <div class="form-grid">
+              <q-select
+                v-model="form.categoria"
+                outlined
+                label="Categoría"
+                :options="categories.filter((c) => c !== 'Todos')"
+              /><q-select
+                v-model="form.ciudad"
+                outlined
+                label="Ciudad"
+                :options="['Lima', 'Cusco', 'Arequipa']"
+              />
+            </div>
+            <q-input
+              v-model.trim="form.lugar"
+              outlined
+              label="Lugar *"
+              :rules="[required]"
+              lazy-rules
+              hide-bottom-space
+            />
+            <q-input
+              v-model="form.fecha"
+              outlined
+              label="Fecha y hora *"
+              type="datetime-local"
+              stack-label
+              :rules="[
+                (v) =>
+                  (!!v && new Date(v) > new Date()) ||
+                  'Selecciona una fecha futura',
+              ]"
+              lazy-rules
+              hide-bottom-space
+            />
+            <div class="form-grid">
+              <q-input
+                v-model.number="form.aforo"
+                outlined
+                label="Aforo *"
+                type="number"
+                min="1"
+                step="1"
+                :rules="[
+                  (v) =>
+                    (Number.isInteger(Number(v)) &&
+                      Number(v) >= minimumCapacity) ||
+                    'El aforo no puede ser menor a ' + minimumCapacity,
+                ]"
+                lazy-rules
+                hide-bottom-space
+              /><q-input
+                v-model.number="form.precio"
+                outlined
+                label="Precio (S/) *"
+                type="number"
+                min="0"
+                step="0.01"
+                :rules="[
+                  (v) =>
+                    (v !== '' &&
+                      Number.isFinite(Number(v)) &&
+                      Number(v) >= 0) ||
+                    'Ingresa un precio válido',
+                ]"
+                lazy-rules
+                hide-bottom-space
+              />
+            </div>
+            <q-input
+              v-model.trim="form.descripcion"
+              outlined
+              label="Descripción"
+              type="textarea"
+              rows="3"
+              maxlength="1000"
+            />
+            <q-select
+              v-model="form.estado"
+              outlined
+              label="Estado"
+              :options="['Borrador', 'Publicado']"
+            />
+            <div class="dialog-actions">
+              <q-btn no-caps flat label="Volver" v-close-popup /><q-btn
+                unelevated
+                no-caps
+                color="primary"
+                type="submit"
+                label="Guardar evento demo"
+              />
+            </div>
+          </q-form>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
     <CancelarEventoModal
-      v-if="selectedEventId !== null"
-      :event-id="selectedEventId"
-      @close="selectedEventId = null"
-      @cancelled="handleCancelled"
+      v-if="cancelTarget"
+      :event="cancelTarget"
+      @close="cancelTarget = null"
+      @cancelled="cancelEvent"
     />
-  </section>
+  </q-page>
 </template>
-
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import api, { getErrorMessage } from '../api/axios.js'
-import CancelarEventoModal from '../components/CancelarEventoModal.vue'
-
-const events = ref([])
-const isLoading = ref(true)
-const isSaving = ref(false)
-const isFormOpen = ref(false)
-const editingEventId = ref(null)
-const selectedEventId = ref(null)
-const pageError = ref('')
-const formError = ref('')
-const successMessage = ref('')
-const form = reactive({
-  titulo: '',
-  lugar: '',
-  fecha: '',
-  aforo: 1,
-  precio: 0,
-})
-
-onMounted(loadEvents)
-
-function eventId(event) {
-  return event.id ?? event.idEvento ?? null
+import { computed, reactive, ref } from "vue";
+import { useQuasar } from "quasar";
+import { events, categories, formatDate, formatPrice } from "../state/demo.js";
+import CancelarEventoModal from "../components/CancelarEventoModal.vue";
+const $q = useQuasar();
+const search = ref("");
+const status = ref("Todos");
+const formOpen = ref(false);
+const editingId = ref(null);
+const cancelTarget = ref(null);
+const form = reactive({});
+const required = (v) => !!v?.trim() || "Este campo es obligatorio";
+const original = computed(() =>
+  events.value.find((e) => e.id === editingId.value),
+);
+const minimumCapacity = computed(() =>
+  Math.max(1, original.value ? original.value.aforo - original.value.cupos : 1),
+);
+const filtered = computed(() =>
+  events.value.filter(
+    (e) =>
+      (status.value === "Todos" || e.estado === status.value) &&
+      e.titulo
+        .toLocaleLowerCase("es")
+        .includes((search.value || "").toLocaleLowerCase("es")),
+  ),
+);
+const stats = computed(() => [
+  {
+    label: "Eventos en total",
+    value: events.value.length,
+    icon: "calendar_month",
+  },
+  {
+    label: "Publicados",
+    value: events.value.filter((e) => e.estado === "Publicado").length,
+    icon: "public",
+  },
+  {
+    label: "En borrador",
+    value: events.value.filter((e) => e.estado === "Borrador").length,
+    icon: "edit_note",
+  },
+]);
+function openForm(event) {
+  editingId.value = event?.id || null;
+  Object.assign(
+    form,
+    event || {
+      titulo: "",
+      categoria: "Tecnología",
+      ciudad: "Lima",
+      lugar: "",
+      fecha: "",
+      aforo: 100,
+      precio: 0,
+      descripcion: "",
+      estado: "Borrador",
+    },
+  );
+  formOpen.value = true;
 }
-
-function formatDate(value) {
-  if (!value) {
-    return 'Fecha por confirmar'
-  }
-
-  const date = new Date(value)
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat('es-PE', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+function save() {
+  const sold = original.value ? original.value.aforo - original.value.cupos : 0;
+  const updated = {
+    ...form,
+    aforo: Number(form.aforo),
+    precio: Number(form.precio),
+    cupos: Number(form.aforo) - sold,
+  };
+  if (original.value) Object.assign(original.value, updated);
+  else
+    events.value.unshift({
+      ...updated,
+      id: Math.max(...events.value.map((e) => e.id), 0) + 1,
+      icono: "festival",
+      imagen: "",
+    });
+  formOpen.value = false;
+  $q.notify({
+    type: "positive",
+    message: "Evento guardado en la demostración.",
+  });
 }
-
-function formatAmount(amount) {
-  const value = Number(amount)
-  return Number.isFinite(value)
-    ? new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value)
-    : amount
-}
-
-async function loadEvents() {
-  isLoading.value = true
-  pageError.value = ''
-
-  try {
-    const response = await api.get('/Evento/mis-eventos')
-    const data = response.data?.datos
-    const list = Array.isArray(data) ? data : data?.eventos
-
-    if (!Array.isArray(list)) {
-      throw new Error('El servidor devolvió una lista de eventos con formato inválido.')
-    }
-
-    events.value = list
-  } catch (error) {
-    pageError.value = getErrorMessage(error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-function resetForm() {
-  form.titulo = ''
-  form.lugar = ''
-  form.fecha = ''
-  form.aforo = 1
-  form.precio = 0
-}
-
-function startCreate() {
-  resetForm()
-  editingEventId.value = null
-  formError.value = ''
-  successMessage.value = ''
-  isFormOpen.value = true
-}
-
-function startEdit(event) {
-  const id = eventId(event)
-
-  if (id === null) {
-    pageError.value = 'No se puede editar el evento: falta su identificador.'
-    return
-  }
-
-  form.titulo = event.titulo || ''
-  form.lugar = event.lugar || ''
-  form.fecha = event.fecha ? toLocalDateTime(event.fecha) : ''
-  form.aforo = Number(event.aforo) || 1
-  form.precio = Number(event.precio) || 0
-  editingEventId.value = id
-  formError.value = ''
-  successMessage.value = ''
-  isFormOpen.value = true
-}
-
-function toLocalDateTime(value) {
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    return ''
-  }
-
-  const offset = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
-}
-
-function closeForm() {
-  isFormOpen.value = false
-  formError.value = ''
-}
-
-async function saveEvent() {
-  isSaving.value = true
-  formError.value = ''
-  successMessage.value = ''
-  const payload = {
-    titulo: form.titulo,
-    lugar: form.lugar,
-    fecha: form.fecha,
-    aforo: form.aforo,
-    precio: form.precio,
-  }
-
-  try {
-    if (editingEventId.value === null) {
-      await api.post('/Evento', payload)
-      successMessage.value = 'El evento se creó correctamente.'
-    } else {
-      await api.put(`/Evento/${encodeURIComponent(editingEventId.value)}`, payload)
-      successMessage.value = 'El evento se actualizó correctamente.'
-    }
-
-    isFormOpen.value = false
-    await loadEvents()
-  } catch (error) {
-    formError.value = getErrorMessage(error)
-  } finally {
-    isSaving.value = false
-  }
-}
-
-async function handleCancelled() {
-  selectedEventId.value = null
-  successMessage.value = 'El evento se canceló correctamente.'
-  await loadEvents()
+function cancelEvent(reason) {
+  cancelTarget.value.estado = "Cancelado";
+  cancelTarget.value.motivoCancelacion = reason;
+  cancelTarget.value = null;
+  $q.notify({
+    type: "positive",
+    message:
+      "Evento cancelado en la demostración. No se enviaron notificaciones reales.",
+  });
 }
 </script>
