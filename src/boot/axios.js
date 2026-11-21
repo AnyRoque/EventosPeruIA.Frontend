@@ -5,7 +5,10 @@ import { Notify } from 'quasar'
 // Dirección del backend EventosPeruIA (Visual Studio)
 export const API_HOST = 'http://localhost:5166'
 
-const api = axios.create({ baseURL: `${API_HOST}/api` })
+const api = axios.create({
+  baseURL: `${API_HOST}/api`,
+  timeout: 60000
+})
 
 // Si hay sesión iniciada, cada petición lleva el token JWT en la cabecera Authorization
 api.interceptors.request.use((config) => {
